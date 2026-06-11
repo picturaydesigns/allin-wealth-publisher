@@ -1,4 +1,5 @@
 name: publish
+# (re-trigger workflow registration)
 
 # Cloud-Zeitplan fuer @allinwealth (US-Publikum!): prueft die Airtable-Queue und postet
 # faellige Eintraege. PC muss NICHT laufen. Manuell testbar ueber "Run workflow".
