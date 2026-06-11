@@ -1,0 +1,16 @@
+{
+  "_hinweis": "Kopiere diese Datei zu publisher_config.json und fuelle die Werte. publisher_config.json ist PRIVAT (gitignored).",
+  "content_root": "C:\\Users\\Alexa\\OneDrive\\Desktop\\Claude\\allin-wealth",
+  "carousels_json": "C:\\Users\\Alexa\\OneDrive\\Desktop\\Claude\\allin-wealth\\content\\carousels.json",
+  "reels_json": "C:\\Users\\Alexa\\OneDrive\\Desktop\\Claude\\allin-wealth\\content\\reels.json",
+  "cloudinary": {
+    "cloud_name": "HIER_CLOUD_NAME",
+    "api_key": "HIER_API_KEY",
+    "api_secret": "HIER_API_SECRET"
+  },
+  "airtable": {
+    "token": "HIER_AIRTABLE_PAT",
+    "base_id": "HIER_BASE_ID",
+    "queue_table": "HIER_QUEUE_TABLE_ID"
+  }
+}

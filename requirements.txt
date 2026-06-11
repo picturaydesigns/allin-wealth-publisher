@@ -1,0 +1,5 @@
+requests>=2.31
+# Phase 2 (YouTube) - erst aktivieren, wenn YT angebunden wird:
+# google-api-python-client>=2.0
+# google-auth>=2.0
+# google-auth-oauthlib>=1.0

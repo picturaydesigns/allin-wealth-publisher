@@ -1,0 +1,10 @@
+# PRIVAT - niemals committen
+publisher_config.json
+*_config.json
+*.token.json
+tokens.json
+# Python
+__pycache__/
+*.pyc
+# keine Medien ins Repo
+*.mp4
