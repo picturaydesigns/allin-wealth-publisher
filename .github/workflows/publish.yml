@@ -30,4 +30,6 @@ jobs:
           AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          UPLOADPOST_API_KEY: ${{ secrets.UPLOADPOST_API_KEY }}
+          UPLOADPOST_PROFILE: ${{ secrets.UPLOADPOST_PROFILE }}
           # Phase 2/3: YT_* / TIKTOK_* Secrets hier ergaenzen

@@ -1,24 +1,35 @@
 # -*- coding: utf-8 -*-
-"""YouTube-Shorts-Poster (Data API v3, videos.insert).
-GERUEST - wird in Phase 2 fertiggebaut + getestet (braucht Google-Cloud-Projekt + OAuth-Verifizierung).
+"""YouTube-Shorts-Poster ueber upload-post.com (gleicher API-Key wie TikTok).
 
-Ablauf (geplant):
-  1) OAuth-Refresh-Token -> frischer Access-Token (google-auth).
-  2) Video von Cloudinary-URL nach /tmp laden (resumable upload braucht die Bytes).
-  3) youtube.videos().insert(part="snippet,status", body=...) mit:
-       snippet.title, snippet.description (+ "#Shorts"), snippet.tags
-       status.privacyStatus = "private" (Test) / "public" (live)
-       status.selfDeclaredMadeForKids = False
-     Shorts = vertikales Video <= 3 Min + #Shorts -> YouTube klassifiziert automatisch.
-  4) Video-ID/Permalink zurueckgeben.
+Warum nicht die YouTube Data API direkt? Die braeuchte ein Google-Cloud-Projekt, einen
+OAuth-Verifizierungsprozess und hat enge Upload-Quoten (~6/Tag). upload-post uebernimmt
+das alles; das YouTube-Konto wird einfach im upload-post-Profil der Marke verbunden.
 
-WICHTIG (siehe Plan, Risiken): Fuer dauerhaft gueltige Refresh-Tokens muss die OAuth-App
-verifiziert/"published" sein (sonst verfallen Test-Tokens nach 7 Tagen). Quota videos.insert
-= 1600 Units (~6 Uploads/Tag bei Standard-Quota).
+  POST {API}/upload  -> Video (nimmt PUBLIC URL direkt an); 9:16 unter 3 Min = Short.
+KI-Kennzeichnung: containsSyntheticMedia=true (offizielle YouTube-Deklaration).
 """
+import requests
+
+from platforms.uploadpost import API, check, headers
 
 
-def publish(video_url, title, description, tags, oauth, privacy="private"):
-    raise NotImplementedError(
-        "YouTube-Poster wird in Phase 2 gebaut (Google-Cloud-Projekt + OAuth noetig)."
-    )
+def publish(video_url, title, description, api_key, profile, ai_generated=True, tags=None,
+            lang="de", audio_lang="de-DE"):
+    """Short posten. video_url = oeffentliche Cloudinary-URL (wird durchgereicht).
+    lang/audio_lang: BCP-47 (englische Marken: lang="en", audio_lang="en-US")."""
+    data = {
+        "user": profile,
+        "platform[]": "youtube",
+        "video": video_url,
+        "title": (title or "")[:100],             # YouTube-Titel max 100 Zeichen
+        "youtube_title": (title or "")[:100],
+        "youtube_description": (description or "")[:5000],
+        "selfDeclaredMadeForKids": "false",
+        "containsSyntheticMedia": "true" if ai_generated else "false",
+        "defaultLanguage": lang,
+        "defaultAudioLanguage": audio_lang,
+    }
+    if tags:
+        data["tags[]"] = tags
+    r = requests.post(f"{API}/upload", headers=headers(api_key), data=data, timeout=600)
+    return check(r, "youtube")

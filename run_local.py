@@ -21,5 +21,13 @@ os.environ["IG_ACCESS_TOKEN"]      = ig["access_token"]
 if "--dry" in sys.argv:
     os.environ["DRY_RUN"] = "1"
 
+
+# upload-post (TikTok + YouTube) aus der Publisher-Config
+HERE = os.path.dirname(os.path.abspath(__file__))
+up = json.load(open(os.path.join(HERE, "publisher_config.json"), encoding="utf-8")).get("uploadpost", {})
+if up:
+    os.environ["UPLOADPOST_API_KEY"] = up["api_key"]
+    os.environ["UPLOADPOST_PROFILE"] = up["profile"]
+
 import poster  # liest die Env-Variablen beim Import
 poster.main()

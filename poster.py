@@ -27,6 +27,8 @@ AT_TABLE = env("AIRTABLE_QUEUE_TABLE")
 AT_TOKEN = env("AIRTABLE_TOKEN")
 IG_USER = env("IG_USER_ID", required=False)
 IG_TOKEN = env("IG_ACCESS_TOKEN", required=False)
+UP_KEY = env("UPLOADPOST_API_KEY", required=False)      # upload-post.com (TikTok + YouTube)
+UP_PROFILE = env("UPLOADPOST_PROFILE", required=False)  # Profilname dort (= Marke)
 DRY_RUN = os.environ.get("DRY_RUN", "") not in ("", "0", "false", "False")
 
 AT_URL = f"https://api.airtable.com/v0/{AT_BASE}/{AT_TABLE}"
@@ -78,10 +80,38 @@ def post_one(rec):
                 else:  # reel
                     mid, link = ig.publish(f["video_url"], f.get("caption", ""), IG_USER, IG_TOKEN)
                 results["instagram"] = link or mid
+            elif p == "tiktok":
+                from platforms import tiktok
+                if not (UP_KEY and UP_PROFILE):
+                    raise RuntimeError("UPLOADPOST_API_KEY / UPLOADPOST_PROFILE nicht gesetzt")
+                cap = f.get("caption_tiktok") or f.get("caption", "")
+                ai = bool(f.get("ai_label", True))
+                if typ == "carousel":
+                    urls = [u for u in (f.get("image_urls") or "").splitlines() if u.strip()]
+                    results["tiktok"] = tiktok.publish_photos(urls, cap, UP_KEY, UP_PROFILE, ai_generated=ai)
+                else:
+                    results["tiktok"] = tiktok.publish_video(f["video_url"], cap, UP_KEY, UP_PROFILE, ai_generated=ai)
+            elif p == "youtube":
+                from platforms import youtube
+                if not (UP_KEY and UP_PROFILE):
+                    raise RuntimeError("UPLOADPOST_API_KEY / UPLOADPOST_PROFILE nicht gesetzt")
+                results["youtube"] = youtube.publish(f["video_url"], f.get("yt_title") or f.get("name", ""),
+                                                     f.get("yt_description") or f.get("caption", ""),
+                                                     UP_KEY, UP_PROFILE, ai_generated=bool(f.get("ai_label", True)), lang="en", audio_lang="en-US")
             else:
                 errors[p] = "Plattform noch nicht angebunden"
         except Exception as e:  # eine Plattform darf die anderen nicht blockieren
             errors[p] = str(e)
+
+    # Voruebergehende Drosselungen (z.B. TikTok-Tageskontingent der upload-post-App):
+    # Eintrag bleibt "scheduled" -> der naechste Cron-Lauf (~20 Min) versucht es erneut.
+    TRANSIENT = ("temporary restriction", "user cap", "try again in a few hours", "rate limit")
+    all_transient = errors and not results and all(
+        any(t in msg.lower() for t in TRANSIENT) for msg in errors.values())
+    if all_transient:
+        update(rec["id"], {"last_error": "RETRY " + "; ".join(f"{k}:{v}" for k, v in errors.items())[:500]})
+        print(f"[{name}] voruebergehend gedrosselt, bleibt scheduled (Retry naechster Lauf)")
+        return
 
     fields = {
         "status": "posted" if results and not errors else ("failed" if errors and not results else "partial"),
@@ -94,6 +124,10 @@ def post_one(rec):
 
 
 def main():
+    if UP_KEY:
+        from platforms import uploadpost
+        ok, info = uploadpost.token_ok(UP_KEY)
+        print(f"UPLOAD-POST {'OK' if ok else 'TOT'} -> {str(info)[:100]}")
     recs = due_records()
     print(f"{len(recs)} faellige Eintraege." + (" (DRY_RUN: poste nichts)" if DRY_RUN else ""))
     for rec in recs:
