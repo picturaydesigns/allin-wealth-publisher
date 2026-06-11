@@ -13,8 +13,11 @@ def headers(api_key):
     return {"Authorization": f"Apikey {api_key}"}
 
 
-def check(resp, platform):
-    """Antwort pruefen und Post-ID/URL fuer das permalinks-Feld extrahieren."""
+def check(resp, platform, api_key=None):
+    """Antwort pruefen und ECHTE Post-URL/-ID zurueckgeben.
+    WICHTIG: 'Auftrag angenommen' (request_id) ist KEIN Erfolg - upload-post verarbeitet
+    asynchron. Wir pollen den Status, bis das echte Ergebnis (success + post_url) feststeht.
+    So landet nie wieder 'posted' in der Queue, wenn TikTok den Post abgewiesen hat."""
     try:
         j = resp.json()
     except ValueError:
@@ -29,7 +32,35 @@ def check(resp, platform):
         ref = res.get("url") or res.get("post_id") or res.get("video_id") or res.get("publish_id")
         if ref:
             return str(ref)
-    return str(j.get("request_id") or "ok")
+    rid = j.get("request_id")
+    if not rid:
+        raise RuntimeError(f"upload-post: weder Ergebnis noch request_id in Antwort: {str(j)[:300]}")
+    if not api_key:
+        raise RuntimeError(f"upload-post: async (request_id={rid}), aber kein api_key zum Status-Pollen")
+    return wait_for_result(rid, platform, api_key)
+
+
+def wait_for_result(request_id, platform, api_key, timeout_s=240, interval_s=10):
+    """Pollt /uploadposts/status bis completed; gibt post_url zurueck oder wirft den echten Fehler."""
+    import time
+    waited = 0
+    while True:
+        r = requests.get(f"{API}/uploadposts/status", headers=headers(api_key),
+                         params={"request_id": request_id}, timeout=60)
+        j = r.json() if r.status_code < 500 else {}
+        if j.get("status") == "completed":
+            for res in j.get("results") or []:
+                if res.get("platform") and res["platform"] != platform:
+                    continue
+                if res.get("success"):
+                    return str(res.get("post_url") or res.get("platform_post_id") or "ok")
+                raise RuntimeError(f"{platform}-Fehler: {res.get('error_message', 'unbekannt')[:300]}")
+            raise RuntimeError(f"{platform}: Status completed, aber kein Ergebnis fuer die Plattform")
+        if waited >= timeout_s:
+            raise RuntimeError(f"{platform}: Verarbeitung nach {timeout_s}s nicht fertig "
+                               f"(request_id={request_id}) - Status spaeter pruefen, NICHT neu posten")
+        time.sleep(interval_s)
+        waited += interval_s
 
 
 def token_ok(api_key):

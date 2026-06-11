@@ -28,7 +28,7 @@ def publish_video(video_url, caption, api_key, profile, ai_generated=True):
         "is_aigc": "true" if ai_generated else "false",
     }
     r = requests.post(f"{API}/upload", headers=headers(api_key), data=data, timeout=600)
-    return check(r, "tiktok")
+    return check(r, "tiktok", api_key)
 
 
 def publish_photos(image_urls, caption, api_key, profile, ai_generated=True):
@@ -55,4 +55,4 @@ def publish_photos(image_urls, caption, api_key, profile, ai_generated=True):
         files.append(("photos[]", (f"slide_{i:02d}.png", resp.content, "image/png")))
     r = requests.post(f"{API}/upload_photos", headers=headers(api_key),
                       data=data, files=files, timeout=600)
-    return check(r, "tiktok")
+    return check(r, "tiktok", api_key)

@@ -32,4 +32,4 @@ def publish(video_url, title, description, api_key, profile, ai_generated=True, 
     if tags:
         data["tags[]"] = tags
     r = requests.post(f"{API}/upload", headers=headers(api_key), data=data, timeout=600)
-    return check(r, "youtube")
+    return check(r, "youtube", api_key)
