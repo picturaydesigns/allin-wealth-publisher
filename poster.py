@@ -124,6 +124,13 @@ def post_one(rec):
 
 
 def main():
+    # IG-TOKEN-CHECK (read-only) - macht stille Token-Ausfaelle sichtbar (wie EG)
+    if IG_USER and IG_TOKEN:
+        ok, info = ig.token_ok(IG_USER, IG_TOKEN)
+        if ok:
+            print(f"IG-TOKEN OK -> @{info.get('username')} ({info.get('followers_count')} Follower)")
+        else:
+            print(f"IG-TOKEN TOT -> {info}  -> neuen Token holen + Secret IG_ACCESS_TOKEN aktualisieren.")
     if UP_KEY:
         from platforms import uploadpost
         ok, info = uploadpost.token_ok(UP_KEY)

@@ -10,6 +10,19 @@ import requests
 API = "https://graph.instagram.com/v22.0"
 
 
+def token_ok(ig_user_id, access_token):
+    """Read-only Health-Check: prueft ob der IG-Token gueltig ist (postet NICHTS)."""
+    try:
+        r = requests.get(f"{API}/{ig_user_id}", params={
+            "fields": "username,followers_count", "access_token": access_token
+        }, timeout=30).json()
+    except Exception as e:
+        return False, str(e)
+    if "username" in r:
+        return True, r
+    return False, r
+
+
 def _permalink(media_id, access_token):
     try:
         r = requests.get(f"{API}/{media_id}", params={
