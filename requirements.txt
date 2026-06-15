@@ -1,4 +1,5 @@
 requests>=2.31
+Pillow>=10.0  # TikTok-Foto-Karussells auf zulaessige Bildgroesse verkleinern
 # Phase 2 (YouTube) - erst aktivieren, wenn YT angebunden wird:
 # google-api-python-client>=2.0
 # google-auth>=2.0

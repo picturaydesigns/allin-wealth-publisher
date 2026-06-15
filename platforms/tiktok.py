@@ -10,9 +10,32 @@ Eigenes Audit bleibt spaetere Spar-Option (dann diesen Adapter austauschen, Sign
   POST {API}/upload_photos  -> Foto-Karussell (nur Datei-Upload -> erst herunterladen)
 Kosten/Limit: Gratis-Tarif 10 Uploads/Monat, Basic unbegrenzt.
 """
+from io import BytesIO
+
 import requests
 
 from platforms.uploadpost import API, check, headers, token_ok  # noqa: F401 (token_ok re-export)
+
+# TikTok-Foto-Posts lehnen zu grosse Bilder mit "Unsupported image size" ab.
+# Sichere Obergrenze: in eine 1080x1920-Box einpassen (Seitenverhaeltnis bleibt).
+TIKTOK_MAX = (1080, 1920)
+
+
+def _tiktok_safe_image(img_bytes):
+    """Bild auf TikTok-vertraegliche Groesse bringen. Gibt PNG-Bytes zurueck.
+    Faellt bei Problemen (kein Pillow / kaputtes Bild) auf das Original zurueck."""
+    try:
+        from PIL import Image
+        im = Image.open(BytesIO(img_bytes))
+        if im.width <= TIKTOK_MAX[0] and im.height <= TIKTOK_MAX[1]:
+            return img_bytes
+        im = im.convert("RGB") if im.mode not in ("RGB", "RGBA") else im
+        im.thumbnail(TIKTOK_MAX, Image.LANCZOS)
+        out = BytesIO()
+        im.save(out, format="PNG")
+        return out.getvalue()
+    except Exception:
+        return img_bytes
 
 
 def publish_video(video_url, caption, api_key, profile, ai_generated=True):
@@ -52,7 +75,8 @@ def publish_photos(image_urls, caption, api_key, profile, ai_generated=True):
     for i, url in enumerate(image_urls, 1):
         resp = requests.get(url, timeout=120)
         resp.raise_for_status()
-        files.append(("photos[]", (f"slide_{i:02d}.png", resp.content, "image/png")))
+        img = _tiktok_safe_image(resp.content)
+        files.append(("photos[]", (f"slide_{i:02d}.png", img, "image/png")))
     r = requests.post(f"{API}/upload_photos", headers=headers(api_key),
                       data=data, files=files, timeout=600)
     return check(r, "tiktok", api_key)
