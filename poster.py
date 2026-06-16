@@ -64,11 +64,16 @@ def update(rec_id, fields):
     """Status zurueckschreiben — MIT Erfolgspruefung + Retry. Stilles Fehlschlagen wuerde den
     Eintrag 'scheduled' lassen -> naechster Lauf postet erneut (Mehrfach-Post-Ursache)."""
     last = None
+    payload = dict(fields)
     for attempt in range(1, 4):
-        r = requests.patch(f"{AT_URL}/{rec_id}", headers=AT_HEADERS, json={"fields": fields}, timeout=60)
+        r = requests.patch(f"{AT_URL}/{rec_id}", headers=AT_HEADERS, json={"fields": payload}, timeout=60)
         if r.status_code == 200:
             return True
         last = f"HTTP {r.status_code}: {r.text[:160]}"
+        if r.status_code == 422 and "MULTIPLE_CHOICE" in r.text and payload.get("status") not in (None, "posted"):
+            payload = dict(payload); payload["status"] = "posted"
+            print("  Status-Option ungueltig -> Fallback status=posted")
+            continue
         print(f"  WARN: Airtable-Update Versuch {attempt}/3 fehlgeschlagen -> {last}")
     print(f"  FEHLER: Status NICHT geschrieben ({last}) — Eintrag {rec_id} bleibt scheduled!")
     return False
