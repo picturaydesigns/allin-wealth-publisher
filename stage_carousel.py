@@ -105,7 +105,7 @@ def main():
         "typ": "carousel",
         "image_urls": "\n".join(urls),
         "caption": caption,
-        "platforms": "instagram",
+        "platforms": "instagram,tiktok",  # IG + TikTok: poster.py verkleinert Slides auf 1080x1920 (kein "Unsupported image size"). YouTube nimmt keine Foto-Karussells.
         "scheduled_time": args.when,
         "status": "scheduled",
         "ki_label": bool(entry.get("ki_kennzeichnung")),

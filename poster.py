@@ -61,7 +61,17 @@ def due_records():
 
 
 def update(rec_id, fields):
-    requests.patch(f"{AT_URL}/{rec_id}", headers=AT_HEADERS, json={"fields": fields}, timeout=60)
+    """Status zurueckschreiben — MIT Erfolgspruefung + Retry. Stilles Fehlschlagen wuerde den
+    Eintrag 'scheduled' lassen -> naechster Lauf postet erneut (Mehrfach-Post-Ursache)."""
+    last = None
+    for attempt in range(1, 4):
+        r = requests.patch(f"{AT_URL}/{rec_id}", headers=AT_HEADERS, json={"fields": fields}, timeout=60)
+        if r.status_code == 200:
+            return True
+        last = f"HTTP {r.status_code}: {r.text[:160]}"
+        print(f"  WARN: Airtable-Update Versuch {attempt}/3 fehlgeschlagen -> {last}")
+    print(f"  FEHLER: Status NICHT geschrieben ({last}) — Eintrag {rec_id} bleibt scheduled!")
+    return False
 
 
 def post_one(rec):
@@ -95,8 +105,11 @@ def post_one(rec):
                 from platforms import youtube
                 if not (UP_KEY and UP_PROFILE):
                     raise RuntimeError("UPLOADPOST_API_KEY / UPLOADPOST_PROFILE nicht gesetzt")
-                results["youtube"] = youtube.publish(f["video_url"], f.get("yt_title") or f.get("name", ""),
-                                                     f.get("yt_description") or f.get("caption", ""),
+                yt_title = (f.get("yt_title") or f.get("name")
+                            or next((l.strip() for l in (f.get("caption") or "").splitlines() if l.strip()), "")
+                            or "Video")[:100]
+                results["youtube"] = youtube.publish(f["video_url"], yt_title,
+                                                     f.get("yt_description") or f.get("caption", "") or yt_title,
                                                      UP_KEY, UP_PROFILE, ai_generated=bool(f.get("ai_label", True)), lang="en", audio_lang="en-US")
             else:
                 errors[p] = "Plattform noch nicht angebunden"
