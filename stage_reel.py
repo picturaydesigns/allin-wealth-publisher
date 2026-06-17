@@ -69,6 +69,8 @@ def main():
     ap.add_argument("--when", default="", help='Postzeit UTC "YYYY-MM-DD HH:MM" (leer = sofort)')
     ap.add_argument("--name", default="")
     ap.add_argument("--ki", action="store_true", help="KI-Label-Flag setzen")
+    ap.add_argument("--platforms", default="instagram,tiktok,youtube",
+                    help="komma-getrennt (Standard: instagram,tiktok,youtube)")
     args = ap.parse_args()
 
     cfg = load_cfg()
@@ -96,7 +98,9 @@ def main():
         "typ": "reel",
         "video_url": url,
         "caption": caption,
-        "platforms": "instagram",
+        "yt_title": name,
+        "yt_description": caption,
+        "platforms": args.platforms,
         "scheduled_time": args.when,
         "status": "scheduled",
         "ki_label": bool(ki),
