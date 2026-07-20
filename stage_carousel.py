@@ -54,18 +54,15 @@ def feed_url(public_id, cc):
 
 
 def airtable_create(at, fields):
-    r = requests.post(
-        f"https://api.airtable.com/v0/{at['base_id']}/{at['queue_table']}",
-        headers={"Authorization": f"Bearer {at['token']}", "Content-Type": "application/json"},
-        json={"fields": fields}, timeout=60)
-    j = r.json()
-    if "id" not in j:
-        raise RuntimeError(f"Airtable-Fehler: {j}")
-    return j["id"]
+    """Seit 20.07.2026: Datei-Queue statt Airtable (Name bleibt, damit alle Aufrufe halten)."""
+    import filequeue
+    return filequeue.queue_append(fields)
 
 
 def find_slides(folder):
-    files = sorted(f for f in os.listdir(folder) if f.lower().endswith((".png", ".jpg", ".jpeg")))
+    files = sorted(f for f in os.listdir(folder) if f.lower().endswith((".png", ".jpg", ".jpeg"))
+                   and not f.lower().endswith("_bg.png")      # Roh-Hintergruende (fal/Higgsfield)
+                   and not f.lower().startswith("cover."))    # und das Roh-Cover nie mit hochladen
     return [os.path.join(folder, f) for f in files]
 
 
