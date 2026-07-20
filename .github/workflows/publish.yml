@@ -1,7 +1,7 @@
 name: publish
 # (re-trigger workflow registration)
 
-# Cloud-Zeitplan fuer @allinwealth (US-Publikum!): prueft die Airtable-Queue und postet
+# Cloud-Zeitplan fuer @allinwealth (US-Publikum!): prueft die Datei-Queue (queue.json) und postet
 # faellige Eintraege. PC muss NICHT laufen. Manuell testbar ueber "Run workflow".
 on:
   schedule:
@@ -19,6 +19,9 @@ concurrency:
   group: publish
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -30,11 +33,18 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python poster.py
         env:
-          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
-          AIRTABLE_QUEUE_TABLE: ${{ secrets.AIRTABLE_QUEUE_TABLE }}
-          AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           UPLOADPOST_API_KEY: ${{ secrets.UPLOADPOST_API_KEY }}
           UPLOADPOST_PROFILE: ${{ secrets.UPLOADPOST_PROFILE }}
           # Phase 2/3: YT_* / TIKTOK_* Secrets hier ergaenzen
+      - name: Queue-Status zurueckschreiben (queue.json committen)
+        if: always()
+        run: |
+          git config user.name "queue-bot"
+          git config user.email "queue-bot@users.noreply.github.com"
+          git add queue.json
+          if git diff --cached --quiet; then echo "keine Queue-Aenderung"; exit 0; fi
+          git commit -m "queue: Status-Update (Cloud-Lauf)"
+          for i in 1 2 3; do git push && exit 0; git pull --rebase; done
+          exit 1

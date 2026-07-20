@@ -51,14 +51,9 @@ def cloudinary_video_upload(path, cc, tries=4):
 
 
 def airtable_create(at, fields):
-    r = requests.post(
-        f"https://api.airtable.com/v0/{at['base_id']}/{at['queue_table']}",
-        headers={"Authorization": f"Bearer {at['token']}", "Content-Type": "application/json"},
-        json={"fields": fields}, timeout=60)
-    j = r.json()
-    if "id" not in j:
-        raise RuntimeError(f"Airtable-Fehler: {j}")
-    return j["id"]
+    """Seit 20.07.2026: Datei-Queue statt Airtable (Name bleibt, damit alle Aufrufe halten)."""
+    import filequeue
+    return filequeue.queue_append(fields)
 
 
 def main():

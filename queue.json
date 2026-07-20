@@ -1,0 +1,4 @@
+{
+ "_hinweis": "Publish-Queue als DATEI (ersetzt Airtable seit 20.07.2026 - Gratis-API-Limit). Stager haengen Eintraege an, poster.py (GitHub Actions) postet faellige und committet den Status zurueck. Zeiten in UTC.",
+ "entries": []
+}

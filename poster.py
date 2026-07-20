@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """CLOUD-Runner (laeuft in GitHub Actions per Cron) fuer @allinwealth (allin Wealth).
-Liest die Airtable-"Publish-Queue-AW", nimmt faellige Eintraege
+Liest die Datei-Queue (queue.json, frueher Airtable-"Publish-Queue-AW", nimmt faellige Eintraege
 (status=scheduled, scheduled_time <= jetzt UTC) und postet sie auf Instagram.
 Karussell: image_urls (je Zeile eine Cloudinary-URL). Reel: video_url.
 Schreibt status/Permalink/Fehler zurueck. PC muss NICHT laufen.
@@ -10,7 +10,9 @@ DRY_RUN=1  -> liest + zeigt faellige Eintraege, postet NICHTS (zum Testen).
 """
 import datetime as dt
 import os
-import requests
+import requests  # noqa: F401 (platforms nutzen eigene Sessions)
+
+import filequeue
 
 from platforms import ig
 
@@ -22,17 +24,13 @@ def env(name, required=True):
     return v
 
 
-AT_BASE = env("AIRTABLE_BASE_ID")
-AT_TABLE = env("AIRTABLE_QUEUE_TABLE")
-AT_TOKEN = env("AIRTABLE_TOKEN")
+# Datei-Queue statt Airtable (20.07.2026): queue.json im Repo, siehe filequeue.py
 IG_USER = env("IG_USER_ID", required=False)
 IG_TOKEN = env("IG_ACCESS_TOKEN", required=False)
 UP_KEY = env("UPLOADPOST_API_KEY", required=False)      # upload-post.com (TikTok + YouTube)
 UP_PROFILE = env("UPLOADPOST_PROFILE", required=False)  # Profilname dort (= Marke)
 DRY_RUN = os.environ.get("DRY_RUN", "") not in ("", "0", "false", "False")
 
-AT_URL = f"https://api.airtable.com/v0/{AT_BASE}/{AT_TABLE}"
-AT_HEADERS = {"Authorization": f"Bearer {AT_TOKEN}", "Content-Type": "application/json"}
 
 
 MAX_PER_RUN = int(os.environ.get("MAX_PER_RUN", "1"))   # Anti-Blast: hoechstens N Posts pro Lauf
@@ -49,71 +47,49 @@ def parse_when(when):
 
 
 def posted_content_keys(days=10):
-    """Inhalte (video_url/image_urls), die in den letzten <days> Tagen schon gepostet wurden -> Anti-Duplikat."""
+    """Inhalte, die in den letzten <days> Tagen schon gepostet wurden -> Anti-Duplikat."""
     cutoff = (dt.datetime.utcnow() - dt.timedelta(days=days)).strftime("%Y-%m-%d %H:%M")
-    keys, offset = set(), None
-    while True:
-        params = [("filterByFormula", "{status}='posted'"),
-                  ("fields[]", "video_url"), ("fields[]", "image_urls"),
-                  ("fields[]", "name"), ("fields[]", "posted_at")]
-        if offset:
-            params.append(("offset", offset))
-        j = requests.get(AT_URL, headers=AT_HEADERS, params=params, timeout=60).json()
-        for rec in j.get("records", []):
-            f = rec.get("fields", {})
-            if (f.get("posted_at") or "") < cutoff:
-                continue
-            k = (f.get("video_url") or f.get("image_urls") or f.get("name") or "").strip()
-            if k:
-                keys.add(k)
-        offset = j.get("offset")
-        if not offset:
-            break
+    keys = set()
+    for e in filequeue.lade().get("entries", []):
+        if e.get("status") != "posted":
+            continue
+        if (e.get("posted_at") or "") < cutoff:
+            continue
+        k = (e.get("video_url") or e.get("image_urls") or e.get("name") or "").strip()
+        if k:
+            keys.add(k)
     return keys
 
 
 def due_records():
-    """Alle scheduled-Eintraege holen; faellige (Zeit <= jetzt UTC oder leer) zurueckgeben."""
+    """Faellige scheduled-Eintraege aus queue.json (Zeit <= jetzt UTC oder leer)."""
     now = dt.datetime.utcnow()
-    out, offset = [], None
-    while True:
-        params = {"filterByFormula": "{status}='scheduled'"}
-        if offset:
-            params["offset"] = offset
-        j = requests.get(AT_URL, headers=AT_HEADERS, params=params, timeout=60).json()
-        for rec in j.get("records", []):
-            when = (rec.get("fields", {}).get("scheduled_time") or "").strip()
-            if not when:
-                out.append(rec)            # leeres Feld = sofort faellig
-                continue
-            t = parse_when(when)
-            if t is None:
-                print(f"  WARN: unlesbares scheduled_time '{when}' -> uebersprungen (postet NICHT)")
-                continue
-            if t <= now:
-                out.append(rec)
-        offset = j.get("offset")
-        if not offset:
-            break
+    out = []
+    for e in filequeue.lade().get("entries", []):
+        if e.get("status") != "scheduled":
+            continue
+        when = (e.get("scheduled_time") or "").strip()
+        if not when:
+            out.append({"id": e.get("id"), "fields": e})
+            continue
+        t = parse_when(when)
+        if t is None:
+            print(f"  WARN: unlesbares scheduled_time '{when}' -> uebersprungen (postet NICHT)")
+            continue
+        if t <= now:
+            out.append({"id": e.get("id"), "fields": e})
     return out
 
 
 def update(rec_id, fields):
-    """Status zurueckschreiben — MIT Erfolgspruefung + Retry. Stilles Fehlschlagen wuerde den
-    Eintrag 'scheduled' lassen -> naechster Lauf postet erneut (Mehrfach-Post-Ursache)."""
-    last = None
-    payload = dict(fields)
-    for attempt in range(1, 4):
-        r = requests.patch(f"{AT_URL}/{rec_id}", headers=AT_HEADERS, json={"fields": payload}, timeout=60)
-        if r.status_code == 200:
+    """Status in queue.json schreiben (der Actions-Workflow committet die Datei zurueck)."""
+    daten = filequeue.lade()
+    for e in daten.get("entries", []):
+        if e.get("id") == rec_id:
+            e.update(fields)
+            filequeue.speichere(daten)
             return True
-        last = f"HTTP {r.status_code}: {r.text[:160]}"
-        if r.status_code == 422 and "MULTIPLE_CHOICE" in r.text and payload.get("status") not in (None, "posted"):
-            payload = dict(payload); payload["status"] = "posted"
-            print("  Status-Option ungueltig -> Fallback status=posted")
-            continue
-        print(f"  WARN: Airtable-Update Versuch {attempt}/3 fehlgeschlagen -> {last}")
-    print(f"  FEHLER: Status NICHT geschrieben ({last}) — Eintrag {rec_id} bleibt scheduled!")
+    print(f"  FEHLER: Eintrag {rec_id} nicht in queue.json gefunden!")
     return False
 
 
