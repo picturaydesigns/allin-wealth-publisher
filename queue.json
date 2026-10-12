@@ -379,6 +379,17 @@
    "status": "scheduled",
    "ai_label": true,
    "id": "q-20261012234015435574-Your_Old_Life"
+  },
+  {
+   "name": "The Strong One",
+   "typ": "reel",
+   "video_url": "https://res.cloudinary.com/datzyfgxc/video/upload/v1791848426/d0fqoxnq1jdkeey3jlxl.mp4",
+   "caption": "Send this to the strong one nobody checks on. 🖤\n\n#growth #strength #mindset #discipline #quietwealth",
+   "platforms": "tiktok,youtube",
+   "scheduled_time": "2026-10-16 18:24",
+   "status": "scheduled",
+   "ai_label": true,
+   "id": "q-20261012234031633000-The_Strong_One"
   }
  ]
 }
