@@ -401,6 +401,17 @@
    "status": "scheduled",
    "ai_label": true,
    "id": "q-20261012234047850302-Your_Calm"
+  },
+  {
+   "name": "The Smile",
+   "typ": "reel",
+   "video_url": "https://res.cloudinary.com/datzyfgxc/video/upload/v1791848459/c84xkibfefangcnnil4a.mp4",
+   "caption": "Miracles are just nights nobody saw. 🖤\n\nComment “night shift” if you’re building right now.\n\n#growth #hustle #discipline #mindset #quietwealth",
+   "platforms": "tiktok,youtube",
+   "scheduled_time": "2026-10-18 18:24",
+   "status": "scheduled",
+   "ai_label": true,
+   "id": "q-20261012234104852457-The_Smile"
   }
  ]
 }
