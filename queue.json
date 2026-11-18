@@ -875,6 +875,17 @@
    "status": "scheduled",
    "ai_label": true,
    "id": "q-20261118164318025140-Rest_is_part_of_the_path_"
+  },
+  {
+   "name": "Say it to yourself: I’m proud of you.",
+   "typ": "reel",
+   "video_url": "https://res.cloudinary.com/datzyfgxc/video/upload/v1795020222/y9unxfffs1p1me8bys0x.mp4",
+   "caption": "Say it to yourself: I’m proud of you. 🖤\n\nComment “me” below.\n\n#growth #mindset #discipline #selfimprovement #quietwealth",
+   "platforms": "tiktok,youtube",
+   "scheduled_time": "2026-11-30 01:24",
+   "status": "scheduled",
+   "ai_label": true,
+   "id": "q-20261118164344322885-Say_it_to_yourself__I_m_proud_of_you_"
   }
  ]
 }
